@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Noice X to Farcaster Poster",
+  "version": "0.1.0",
+  "description": "Automatically posts your tweets to Farcaster.",
+  "permissions": ["storage", "identity", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Noice X to Farcaster"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+} 

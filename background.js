@@ -1,0 +1,1 @@
+console.log('Noice X to Farcaster background script running.'); 
