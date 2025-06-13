@@ -36,8 +36,8 @@ The goal is to build a Chrome extension that automatically posts a user's tweets
 # Project Status Board
 
 - [x] Research Feasibility and APIs
-- [ ] Chrome Extension Boilerplate Setup (in progress)
-- [ ] X (Twitter) OAuth Integration
+- [x] Chrome Extension Boilerplate Setup
+- [ ] X (Twitter) OAuth Integration (in progress)
 - [ ] Farcaster Onboarding Flow
 - [ ] Tweet Detection and Cross-Posting Logic
 - [ ] Mobile Support Research and Implementation (Bonus)
@@ -79,9 +79,14 @@ The goal is to build a Chrome extension that automatically posts a user's tweets
 ## Chrome Extension Boilerplate Setup
 - Starting setup of a minimal Chrome extension (Manifest V3) with popup and background script. Will verify extension loads in Chrome and basic UI appears.
 
+## X (Twitter) OAuth Integration
+- User confirmed extension loads and popup appears. Starting implementation of X (Twitter) OAuth flow in the extension.
+- Added Connect X (Twitter) button to popup, message passing to background script, and status updates. Next: implement actual OAuth flow.
+
 # Executor's Feedback or Assistance Requests
 
-- Chrome Extension Boilerplate Setup started. Will report back after verifying extension loads and popup appears.
+- User confirmed extension loads. Proceeding with X (Twitter) OAuth Integration.
+- Connect X (Twitter) button and message passing implemented. Next: implement actual OAuth flow. If you have X API credentials (consumer key/secret), please provide them or let me know if you want to use test credentials for development.
 
 # Lessons
 
