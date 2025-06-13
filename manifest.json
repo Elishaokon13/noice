@@ -3,9 +3,21 @@
   "name": "Noice X to Farcaster Poster",
   "version": "0.1.0",
   "description": "Automatically posts your tweets to Farcaster.",
-  "permissions": ["storage", "identity", "scripting"],
+  "permissions": [
+    "storage",
+    "identity",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://localhost:4000/*",
+    "https://api.twitter.com/*",
+    "https://ba13-102-90-80-88.ngrok-free.app/*"
+  ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_popup": "popup.html",

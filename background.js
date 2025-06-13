@@ -29,6 +29,11 @@ function stopPolling() {
 
 async function checkTwitterCredentials() {
   try {
+    const result = await chrome.storage.local.get([
+      'twitter_access_token',
+      'twitter_access_token_secret'
+    ]);
+
     const response = await fetch(`${API_BASE_URL}/verify-credentials`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -64,14 +69,14 @@ async function startTwitterOAuth() {
     }
 
     // Store request token for later verification
-    chrome.storage.local.set({ 
+    await chrome.storage.local.set({ 
       twitter_request_token: data.oauth_token,
       twitter_request_token_secret: data.oauth_token_secret 
     });
 
     // Open Twitter auth page
     const oauthUrl = `https://api.twitter.com/oauth/authenticate?oauth_token=${data.oauth_token}`;
-    chrome.tabs.create({ url: oauthUrl });
+    const tab = await chrome.tabs.create({ url: oauthUrl });
     
     return true;
   } catch (error) {
@@ -80,7 +85,7 @@ async function startTwitterOAuth() {
   }
 }
 
-async function handleTwitterCallback(url) {
+async function handleTwitterCallback(url, tabId) {
   try {
     const params = new URLSearchParams(url.split('?')[1]);
     const oauth_token = params.get('oauth_token');
@@ -114,6 +119,9 @@ async function handleTwitterCallback(url) {
 
     // Clean up request token
     await chrome.storage.local.remove(['twitter_request_token', 'twitter_request_token_secret']);
+
+    // Close the tab
+    await chrome.tabs.remove(tabId);
 
     // Notify popup of success
     chrome.runtime.sendMessage({
@@ -187,8 +195,16 @@ async function handleFarcasterCallback(url) {
 
 // Message handling
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('Received message:', message);
+  
   if (message.type === 'START_X_OAUTH') {
-    startTwitterOAuth().then(ok => sendResponse({ok}));
+    startTwitterOAuth().then(ok => {
+      console.log('OAuth started:', ok);
+      sendResponse({ok});
+    }).catch(err => {
+      console.error('OAuth error:', err);
+      sendResponse({ok: false});
+    });
     return true; // Keep channel open for async response
   } else if (message.type === 'START_FARCASTER_AUTH') {
     startFarcasterAuth().then(ok => sendResponse({ok}));
@@ -199,8 +215,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // URL monitoring for OAuth callbacks
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.url) {
+    console.log('URL changed:', changeInfo.url);
+    
     if (changeInfo.url.startsWith(TWITTER_CALLBACK_URL)) {
-      handleTwitterCallback(changeInfo.url);
+      handleTwitterCallback(changeInfo.url, tabId);
     } else if (changeInfo.url.includes('farcaster-callback')) {
       handleFarcasterCallback(changeInfo.url);
     }
@@ -229,7 +247,7 @@ async function pollTwitterAndCrosspost() {
     if (!screenName) {
       console.error('Twitter credentials invalid, stopping polling');
       stopPolling();
-      chrome.storage.local.remove([
+      await chrome.storage.local.remove([
         'twitter_access_token',
         'twitter_access_token_secret',
         'twitter_screen_name'
@@ -291,7 +309,7 @@ async function pollTwitterAndCrosspost() {
     }
 
     if (newLastTweetId !== lastTweetId) {
-      chrome.storage.local.set({ lastTweetId: newLastTweetId });
+      await chrome.storage.local.set({ lastTweetId: newLastTweetId });
     }
   } catch (err) {
     console.error('Error in pollTwitterAndCrosspost:', err);
@@ -308,29 +326,5 @@ chrome.storage.local.get([
       result.twitter_access_token_secret && 
       result.farcaster_signer_uuid) {
     startPolling();
-  }
-});
-
-// Add message listener for OAuth callback
-window.addEventListener('message', function(event) {
-  if (event.data.type === 'TWITTER_OAUTH_SUCCESS') {
-    const { access_token, access_token_secret, screen_name } = event.data.data;
-    
-    // Store the tokens
-    chrome.storage.local.set({
-      twitter_access_token: access_token,
-      twitter_access_token_secret: access_token_secret,
-      twitter_screen_name: screen_name,
-      lastTweetId: null // Reset last tweet ID
-    }, function() {
-      // Notify popup of success
-      chrome.runtime.sendMessage({
-        type: 'X_AUTH_SUCCESS',
-        screen_name: screen_name
-      });
-
-      // Start polling
-      startPolling();
-    });
   }
 }); 
