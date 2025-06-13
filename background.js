@@ -309,4 +309,28 @@ chrome.storage.local.get([
       result.farcaster_signer_uuid) {
     startPolling();
   }
+});
+
+// Add message listener for OAuth callback
+window.addEventListener('message', function(event) {
+  if (event.data.type === 'TWITTER_OAUTH_SUCCESS') {
+    const { access_token, access_token_secret, screen_name } = event.data.data;
+    
+    // Store the tokens
+    chrome.storage.local.set({
+      twitter_access_token: access_token,
+      twitter_access_token_secret: access_token_secret,
+      twitter_screen_name: screen_name,
+      lastTweetId: null // Reset last tweet ID
+    }, function() {
+      // Notify popup of success
+      chrome.runtime.sendMessage({
+        type: 'X_AUTH_SUCCESS',
+        screen_name: screen_name
+      });
+
+      // Start polling
+      startPolling();
+    });
+  }
 }); 
