@@ -82,11 +82,13 @@ The goal is to build a Chrome extension that automatically posts a user's tweets
 ## X (Twitter) OAuth Integration
 - User confirmed extension loads and popup appears. Starting implementation of X (Twitter) OAuth flow in the extension.
 - Added Connect X (Twitter) button to popup, message passing to background script, and status updates. Next: implement actual OAuth flow.
+- Added placeholder X API credentials and started OAuth flow structure in background.js. Next: implement request token step and callback handling. Note: real credentials and callback URL are needed for production.
 
 # Executor's Feedback or Assistance Requests
 
 - User confirmed extension loads. Proceeding with X (Twitter) OAuth Integration.
 - Connect X (Twitter) button and message passing implemented. Next: implement actual OAuth flow. If you have X API credentials (consumer key/secret), please provide them or let me know if you want to use test credentials for development.
+- Placeholder credentials and OAuth structure added. Real credentials and callback URL will be required for production use.
 
 # Lessons
 

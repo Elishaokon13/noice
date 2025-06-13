@@ -4,15 +4,88 @@
   <meta charset="UTF-8">
   <title>Noice X to Farcaster</title>
   <style>
-    body { font-family: sans-serif; min-width: 220px; padding: 16px; }
-    h1 { font-size: 1.2em; margin: 0 0 8px 0; }
-    #status { color: #888; margin-top: 12px; }
+    body { 
+      font-family: system-ui, -apple-system, sans-serif; 
+      min-width: 300px; 
+      padding: 20px; 
+      margin: 0;
+    }
+    h1 { 
+      font-size: 1.2em; 
+      margin: 0 0 16px 0; 
+      color: #1a1a1a;
+    }
+    .status-box {
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      font-size: 0.9em;
+    }
+    .status-box.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .status-box.success {
+      background: #ecfdf5;
+      color: #065f46;
+    }
+    button {
+      background: #0f172a;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9em;
+      width: 100%;
+      margin-top: 8px;
+    }
+    button:hover {
+      background: #1e293b;
+    }
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    button.secondary {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    button.secondary:hover {
+      background: #cbd5e1;
+    }
+    .account-info {
+      font-size: 0.9em;
+      color: #64748b;
+      margin: 8px 0;
+    }
+    .divider {
+      height: 1px;
+      background: #e2e8f0;
+      margin: 16px 0;
+    }
   </style>
 </head>
 <body>
   <h1>Noice X to Farcaster</h1>
-  <div id="status">Extension loaded.</div>
-  <button id="connect-x" style="margin-top:16px;">Connect X (Twitter)</button>
+  
+  <div id="x-section">
+    <div class="status-box" id="x-status">Checking X (Twitter) connection...</div>
+    <div class="account-info" id="x-account-info"></div>
+    <button id="connect-x">Connect X (Twitter)</button>
+    <button id="disconnect-x" class="secondary" style="display:none">Disconnect X</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div id="farcaster-section" style="display:none">
+    <div class="status-box" id="farcaster-status">Ready to connect Farcaster</div>
+    <div class="account-info" id="farcaster-account-info"></div>
+    <button id="connect-farcaster">Connect Farcaster</button>
+    <button id="disconnect-farcaster" class="secondary" style="display:none">Disconnect Farcaster</button>
+  </div>
+
   <script src="popup.js"></script>
 </body>
 </html> 
