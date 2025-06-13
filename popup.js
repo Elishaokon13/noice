@@ -20,19 +20,6 @@ function updateFarcasterStatus(message, type = 'normal') {
   farcasterStatus.className = 'status-box' + (type !== 'normal' ? ' ' + type : '');
 }
 
-// Track OAuth window
-let oauthWindow = null;
-
-// Check if OAuth window was closed
-function checkOAuthWindow() {
-  if (oauthWindow && oauthWindow.closed) {
-    console.log('OAuth window was closed');
-    connectXBtn.disabled = false;
-    updateXStatus('X (Twitter) connection cancelled', 'error');
-    oauthWindow = null;
-  }
-}
-
 // Check initial connection state
 chrome.storage.local.get(['twitter_access_token', 'twitter_screen_name', 'farcaster_signer_uuid', 'farcaster_username'], (result) => {
   if (result.twitter_access_token && result.twitter_screen_name) {
@@ -68,17 +55,6 @@ connectXBtn.addEventListener('click', function() {
   chrome.runtime.sendMessage({ type: 'START_X_OAUTH' }, function(response) {
     if (response && response.ok) {
       updateXStatus('Waiting for X (Twitter) authorization...', 'normal');
-      // Start checking if OAuth window was closed
-      if (oauthWindow) {
-        oauthWindow.close();
-      }
-      oauthWindow = window.open('about:blank', 'oauth_window', 'width=600,height=600');
-      const checkInterval = setInterval(() => {
-        if (oauthWindow && oauthWindow.closed) {
-          clearInterval(checkInterval);
-          checkOAuthWindow();
-        }
-      }, 500);
     } else {
       updateXStatus('Failed to start X (Twitter) connection', 'error');
       connectXBtn.disabled = false;

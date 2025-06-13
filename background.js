@@ -10,6 +10,7 @@ const POLL_INTERVAL = 60 * 1000; // 1 minute
 
 // State management
 let pollInterval = null;
+let authTabId = null;
 
 // Helper functions
 function startPolling() {
@@ -58,6 +59,16 @@ async function checkTwitterCredentials() {
 // OAuth flow
 async function startTwitterOAuth() {
   try {
+    // Close any existing auth tab
+    if (authTabId !== null) {
+      try {
+        await chrome.tabs.remove(authTabId);
+      } catch (e) {
+        console.log('No existing auth tab to close');
+      }
+      authTabId = null;
+    }
+
     const response = await fetch(`${API_BASE_URL}/twitter-request-token`);
     if (!response.ok) {
       throw new Error('Failed to get request token');
@@ -77,65 +88,11 @@ async function startTwitterOAuth() {
     // Open Twitter auth page
     const oauthUrl = `https://api.twitter.com/oauth/authenticate?oauth_token=${data.oauth_token}`;
     const tab = await chrome.tabs.create({ url: oauthUrl });
+    authTabId = tab.id;
     
     return true;
   } catch (error) {
     console.error('Error starting Twitter OAuth:', error);
-    return false;
-  }
-}
-
-async function handleTwitterCallback(url, tabId) {
-  try {
-    const params = new URLSearchParams(url.split('?')[1]);
-    const oauth_token = params.get('oauth_token');
-    const oauth_verifier = params.get('oauth_verifier');
-
-    // Verify this is the request token we stored
-    const stored = await chrome.storage.local.get(['twitter_request_token']);
-    if (stored.twitter_request_token !== oauth_token) {
-      throw new Error('OAuth token mismatch');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/twitter-access-token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ oauth_token, oauth_verifier })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to get access token');
-    }
-
-    const data = await response.json();
-    
-    // Store the access token and screen name
-    await chrome.storage.local.set({
-      twitter_access_token: data.oauth_token,
-      twitter_access_token_secret: data.oauth_token_secret,
-      twitter_screen_name: data.screen_name,
-      lastTweetId: null // Reset last tweet ID
-    });
-
-    // Clean up request token
-    await chrome.storage.local.remove(['twitter_request_token', 'twitter_request_token_secret']);
-
-    // Close the tab
-    await chrome.tabs.remove(tabId);
-
-    // Notify popup of success
-    chrome.runtime.sendMessage({
-      type: 'X_AUTH_SUCCESS',
-      screen_name: data.screen_name
-    });
-
-    // Start polling
-    startPolling();
-
-    return true;
-  } catch (error) {
-    console.error('Error handling Twitter callback:', error);
-    chrome.runtime.sendMessage({ type: 'X_AUTH_FAILURE' });
     return false;
   }
 }
@@ -213,14 +170,71 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // URL monitoring for OAuth callbacks
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.url) {
     console.log('URL changed:', changeInfo.url);
     
     if (changeInfo.url.startsWith(TWITTER_CALLBACK_URL)) {
-      handleTwitterCallback(changeInfo.url, tabId);
+      try {
+        const params = new URLSearchParams(changeInfo.url.split('?')[1]);
+        const oauth_token = params.get('oauth_token');
+        const oauth_verifier = params.get('oauth_verifier');
+
+        // Verify this is the request token we stored
+        const stored = await chrome.storage.local.get(['twitter_request_token']);
+        if (stored.twitter_request_token !== oauth_token) {
+          throw new Error('OAuth token mismatch');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/twitter-access-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oauth_token, oauth_verifier })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get access token');
+        }
+
+        const data = await response.json();
+        
+        // Store the access token and screen name
+        await chrome.storage.local.set({
+          twitter_access_token: data.oauth_token,
+          twitter_access_token_secret: data.oauth_token_secret,
+          twitter_screen_name: data.screen_name,
+          lastTweetId: null // Reset last tweet ID
+        });
+
+        // Clean up request token
+        await chrome.storage.local.remove(['twitter_request_token', 'twitter_request_token_secret']);
+
+        // Close the tab
+        await chrome.tabs.remove(tabId);
+        authTabId = null;
+
+        // Notify popup of success
+        chrome.runtime.sendMessage({
+          type: 'X_AUTH_SUCCESS',
+          screen_name: data.screen_name
+        });
+
+        // Start polling
+        startPolling();
+      } catch (error) {
+        console.error('Error handling Twitter callback:', error);
+        chrome.runtime.sendMessage({ type: 'X_AUTH_FAILURE' });
+        
+        // Close the tab on error too
+        try {
+          await chrome.tabs.remove(tabId);
+          authTabId = null;
+        } catch (e) {
+          console.error('Error closing auth tab:', e);
+        }
+      }
     } else if (changeInfo.url.includes('farcaster-callback')) {
-      handleFarcasterCallback(changeInfo.url);
+      handleFarcasterCallback(changeInfo.url, tabId);
     }
   }
 });
