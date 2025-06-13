@@ -25,6 +25,7 @@ const oa = new OAuth(
 );
 
 app.use(cors());
+app.use(express.json());
 
 // Endpoint to get a fresh request token
 app.get('/twitter-request-token', (req, res) => {
@@ -35,7 +36,7 @@ app.get('/twitter-request-token', (req, res) => {
     }
     // Store the secret for later use in callback
     requestTokenSecrets[oauth_token] = oauth_token_secret;
-    res.json({ oauth_token });
+    res.json({ oauth_token, oauth_token_secret });
   });
 });
 
@@ -49,7 +50,16 @@ app.get('/twitter-callback', (req, res) => {
   console.log('oauth_token_secret:', oauth_token_secret);
 
   if (!oauth_token || !oauth_verifier || !oauth_token_secret) {
-    return res.status(400).send('<h2>Missing required OAuth parameters.</h2>');
+    return res.status(400).send(`
+      <html>
+        <body>
+          <h2>Missing required OAuth parameters.</h2>
+          <script>
+            window.close();
+          </script>
+        </body>
+      </html>
+    `);
   }
 
   // Exchange for access token and secret
@@ -60,25 +70,79 @@ app.get('/twitter-callback', (req, res) => {
     (error, access_token, access_token_secret, results) => {
       if (error) {
         console.error('Error getting access token:', error);
-        return res.status(500).send('<h2>Error getting access token from Twitter.</h2>');
+        return res.status(500).send(`
+          <html>
+            <body>
+              <h2>Error getting access token from Twitter.</h2>
+              <script>
+                window.close();
+              </script>
+            </body>
+          </html>
+        `);
       }
-      console.log('User access_token:', access_token);
-      console.log('User access_token_secret:', access_token_secret);
-      console.log('Results:', results);
+
+      // Clean up the request token
+      delete requestTokenSecrets[oauth_token];
+
+      // Send success response with script to communicate with extension
       res.send(`
-        <h2>Twitter OAuth Success!</h2>
-        <p>access_token: <code>${access_token}</code></p>
-        <p>access_token_secret: <code>${access_token_secret}</code></p>
-        <p>results: <pre>${JSON.stringify(results, null, 2)}</pre></p>
-        <p>You can now use these tokens to make authenticated requests to the Twitter API.</p>
+        <html>
+          <body>
+            <h2>Twitter OAuth Success!</h2>
+            <p>You can close this window now.</p>
+            <script>
+              // Send message to extension
+              window.opener.postMessage({
+                type: 'TWITTER_OAUTH_SUCCESS',
+                data: {
+                  access_token: '${access_token}',
+                  access_token_secret: '${access_token_secret}',
+                  screen_name: '${results.screen_name}'
+                }
+              }, '*');
+              
+              // Close the window after a short delay
+              setTimeout(() => window.close(), 1000);
+            </script>
+          </body>
+        </html>
       `);
     }
   );
 });
 
+// Verify credentials endpoint
+app.post('/verify-credentials', async (req, res) => {
+  const { access_token, access_token_secret } = req.body;
+  
+  if (!access_token || !access_token_secret) {
+    return res.status(400).json({ error: 'Missing access token or secret' });
+  }
+
+  const client = new Twitter({
+    subdomain: 'api', // api is the default
+    version: '1.1', // version 1.1 is the default
+    consumer_key: consumerKey,
+    consumer_secret: consumerSecret,
+    access_token_key: access_token,
+    access_token_secret: access_token_secret,
+  });
+
+  try {
+    const user = await client.get('account/verify_credentials');
+    res.json({ screen_name: user.screen_name });
+  } catch (error) {
+    console.error('Error verifying credentials:', error);
+    res.status(401).json({ error: 'Invalid credentials' });
+  }
+});
+
 app.post('/user-timeline', async (req, res) => {
   const { access_token, access_token_secret, since_id } = req.body;
   const client = new Twitter({
+    subdomain: 'api',
+    version: '1.1',
     consumer_key: consumerKey,
     consumer_secret: consumerSecret,
     access_token_key: access_token,
